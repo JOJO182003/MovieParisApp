@@ -29,12 +29,20 @@ class User {
     - int id
     - String username
     - String passwordHash
+    - String role << "public" ou "admin" >>
     - List<Theatre> theatres
 }
 
 note right of Movie
 days : jours de projection
 time : horaire de la séance
+end note
+
+note right of User
+role : "public" ou "admin".
+- Si public → accès lecture seulement.
+- Si admin → peut gérer des cinémas.
+theatres : liste des cinémas gérés (seulement si admin)
 end note
 
 ' --- DAO (Interfaces + Implémentations possibles) ---
@@ -84,3 +92,4 @@ MovieResource --> MovieDAOInterface : utilise
 AuthResource --> UserDAOInterface : utilise
 
 @enduml
+
