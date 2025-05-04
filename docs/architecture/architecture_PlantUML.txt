@@ -1,0 +1,78 @@
+@startuml
+left to right direction
+skinparam linetype ortho
+skinparam nodesep 50
+skinparam ranksep 50
+
+' --- Interface Web --- (doit être déclaré AVANT la note qui le cible)
+node "Interface Web (JSP)" as jsp {
+    component "Login JSP" as LoginJSP
+    component "Add Movie JSP" as AddMovieJSP
+    component "MoviesByCity JSP" as MoviesByCityJSP
+    component "MovieDetails JSP" as MovieDetailsJSP
+}
+
+' --- LÉGENDE ---
+note top of jsp
+Couleurs des flèches :
+[#0000FF] Bleu : Appels synchrones (formulaire, POST classique)
+[#008000] Vert : Appels AJAX (asynchrones)
+[#FFA500] Orange : Réponses JSON
+end note
+
+' Acteurs
+actor "Admin Cinéma" as Admin
+actor "Utilisateur Public" as Public
+
+' Héritage : Admin hérite des droits Public
+Admin -|> Public
+
+' --- Serveur ---
+node "Serveur Tomcat" as tomcat {
+    [ServletContainer (Jersey)] as jersey
+    component AuthResource
+    component MovieResource
+    component UserDAO
+    component MovieDAO
+}
+
+' --- Base de données ---
+database "MySQL" as MySQL_DB
+
+' --- Flux Admin ---
+
+' Login
+Admin -[#0000FF]-> LoginJSP : saisir identifiants (sync)
+LoginJSP -[#0000FF]-> jersey : POST /api/login (sync)
+jersey -[#0000FF]-> AuthResource
+AuthResource -[#0000FF]-> UserDAO : vérifier utilisateur
+UserDAO -[#0000FF]-> MySQL_DB : requête SQL
+AuthResource -[#FFA500]-> LoginJSP : réponse JSON
+
+' Ajouter film
+Admin -[#0000FF]-> AddMovieJSP : ajouter film (sync)
+AddMovieJSP -[#0000FF]-> jersey : POST /api/movies (sync)
+jersey -[#0000FF]-> MovieResource
+MovieResource -[#0000FF]-> MovieDAO : ajouter film
+MovieDAO -[#0000FF]-> MySQL_DB : requête SQL
+MovieResource -[#FFA500]-> AddMovieJSP : réponse JSON
+
+' --- Flux Public ---
+
+' Choisir ville → liste films
+Public -[#008000]-> MoviesByCityJSP : choisir ville (AJAX)
+MoviesByCityJSP -[#008000]-> jersey : GET /api/movies?city=... (AJAX)
+jersey -[#008000]-> MovieResource
+MovieResource -[#0000FF]-> MovieDAO : lire films
+MovieDAO -[#0000FF]-> MySQL_DB : requête SQL
+MovieResource -[#FFA500]-> MoviesByCityJSP : JSON liste films
+
+' Voir détails film
+Public -[#008000]-> MovieDetailsJSP : voir détails (AJAX)
+MovieDetailsJSP -[#008000]-> jersey : GET /api/movies/{id} (AJAX)
+jersey -[#008000]-> MovieResource
+MovieResource -[#0000FF]-> MovieDAO : lire film
+MovieDAO -[#0000FF]-> MySQL_DB : requête SQL
+MovieResource -[#FFA500]-> MovieDetailsJSP : JSON détail film
+
+@enduml
