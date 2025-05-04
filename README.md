@@ -196,8 +196,83 @@ L’arborescence est conçue pour que chaque développeur puisse se concentrer s
 </details>
 
 
+<br>
 
+## 📚 Diagramme de classes (modèle Java)
 
-
-
+Le diagramme de classes UML ci-dessous présente les principales classes Java du projet et leurs relations.
 ![Schéma du Diagramme de Classe](docs/diagramme_de_classe/diagramme_de_classe.png)
+
+<details>
+<summary>📝 Description du modèle</summary>
+
+Dans ce modèle :
+
+- La classe **Movie** est liée à un **Theatre** (chaque film est projeté dans une salle donnée).
+- Chaque **User** possède un attribut `role` qui détermine s’il s’agit d’un **utilisateur public** (lecture seule) ou d’un **administrateur** (peut gérer des cinémas et des films).
+  - Les administrateurs (`role = admin`) peuvent être associés à plusieurs cinémas qu’ils gèrent.
+- Les classes **DAO** (Data Access Object) sont définies par des interfaces (`MovieDAOInterface`, `TheatreDAOInterface`, `UserDAOInterface`) et implémentées par des classes concrètes.
+  - Elles fournissent des méthodes pour interagir avec la base de données (par exemple : récupérer les films par ville, ajouter un film).
+- Les classes **Resource** (**MovieResource**, **AuthResource**) exposent les endpoints REST et utilisent les DAO pour la logique métier.
+  - Par exemple, `MovieResource.getMovies(city)` appelle `MovieDAO.getMoviesByCity(city)` et renvoie la liste des films au format JSON.
+  
+Le diagramme respecte la séparation des responsabilités :
+- **Modèle (données)** : `Movie`, `Theatre`, `User`.
+- **Accès aux données** : DAO (interfaces + implémentations).
+- **Exposition REST** : Resources.
+</details>
+
+<br>
+
+## 🔗 API REST – Endpoints et formats JSON
+
+Le backend expose quatre endpoints principaux via l’API REST (chemin de contexte `/api/` sur Tomcat).
+
+<details>
+<summary>🔑 <strong>POST /login – Authentification</strong></summary>
+
+**Description** : Authentification basique d’un cinéma (admin).
+
+**Requête JSON** : JSON contenant les identifiants d’un utilisateur admin de cinéma, par ex:
+
+```json
+{ "username": "ugc_admin", "password": "secret" }
+```
+**Traitement** : vérifie dans la base si un utilisateur avec ce login/mot de passe existe. Si oui, la réponse contient un indicateur de succès (et éventuellement un token de session simple).
+
+**Réponse** : code 200 OK avec JSON, par ex. succès :
+```json
+{ "success": true, "userId": 1, "message": "Login successful" }
+```
+(En cas d’échec : `{"success": false, "message": "Invalid credentials"}` et code 401 Unauthorized).
+</details>
+
+<details>
+<summary>🎞 <strong>POST /movies – Ajout d’un film  (par un admin authentifié)</strong></summary>
+
+**Requête JSON** : JSON représentant le film à ajouter. Ce JSON comprend les métadonnées du film ainsi que la salle/horaire. Par exemple :
+
+```json
+{
+  "title": "Inception",
+  "duration": 148,
+  "language": "Anglais (VO sous-titré FR)",
+  "director": "Christopher Nolan",
+  "mainActors": ["Leonardo DiCaprio", "Ellen Page"],
+  "minAge": 12,
+  "startDate": "2010-07-16",
+  "endDate": "2010-09-30",
+  "days": "Lundi,Mercredi,Vendredi",
+  "time": "20:00",
+  "theatreId": 1
+}
+```
+(Ici `theatreId` identifie la salle où le film sera joué. Dans une implémentation réelle, on associerait le film au cinéma de l’utilisateur authentifié automatiquement, plutôt que de l’envoyer dans le JSON.)
+
+**Traitement** :  crée un nouveau film dans la base de données (après avoir éventuellement vérifié l’authentification de l’appelant). Le DAO insère le film et retourne son ID généré.
+
+**Réponse** : code 201 Created si succès, avec éventuellement le film créé en JSON (incluant son `id` attribué). Par ex.:
+```json
+{ "success": true, "userId": 1, "message": "Login successful" }
+```
+</details>
