@@ -194,3 +194,10 @@ L’arborescence est conçue pour que chaque développeur puisse se concentrer s
 - Les modules sont isolés pour limiter les interférences.
 
 </details>
+
+
+
+
+
+
+![Schéma du Diagramme de Classe](docs/diagramme_de_classe/diagramme_de_classe.png)
