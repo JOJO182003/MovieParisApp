@@ -25,4 +25,4 @@ Les utilisateurs publics accèdent à des pages JSP (liste des films, détails) 
 
 Le backend REST (déployé sur Tomcat via Jersey) traite les requêtes, interroge la base de données MySQL à l’aide de la couche **DAO**, puis renvoie les réponses en **JSON** (sérialisées par **Jackson**).
 
-
+![Schéma d’architecture](docs/architecture/architecture_systeme.png)
