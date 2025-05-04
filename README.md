@@ -204,6 +204,7 @@ Le diagramme de classes UML ci-dessous présente les principales classes Java du
 ![Schéma du Diagramme de Classe](docs/diagramme_de_classe/diagramme_de_classe.png)
 
 <details>
+  
 <summary>📝 Description du modèle</summary>
 
 Dans ce modèle :
@@ -276,3 +277,169 @@ Le backend expose quatre endpoints principaux via l’API REST (chemin de contex
 { "success": true, "userId": 1, "message": "Login successful" }
 ```
 </details>
+
+
+<details> 
+  <summary>🎥 <strong>GET /movies?city={ville} – Liste des films par ville</strong></summary>
+
+  **Requête** : paramètre de requête `city` dans l’URL, par ex : `/movies?city=Paris` (Aucune authentification requise).
+  
+  **Traitement** : interroge la base via `MovieDAO.getMoviesByCity(ville)` pour obtenir tous les films dont la salle est dans la ville spécifiée.
+  
+  **Réponse** : code 200 OK avec un tableau JSON listant les films. Chaque film inclut ses informations principales. On peut choisir de ne pas tout exposer (par ex. ne pas inclure les horaires détaillés dans la liste), mais pour simplicité on renvoie la structure complète. Exemple de réponse :
+  
+ ```json
+[
+  {
+    "id": 5,
+    "title": "Inception",
+    "duration": 148,
+    "language": "Anglais (VO sous-titré FR)",
+    "director": "Christopher Nolan",
+    "mainActors": ["Leonardo DiCaprio", "Elliot Page"],
+    "minAge": 12,
+    "startDate": "2010-07-16",
+    "endDate": "2010-09-30",
+    "days": "Lundi,Mercredi,Vendredi",
+    "time": "20:00",
+    "theatre": {
+      "id": 1,
+      "name": "UGC Ciné Cité Les Halles",
+      "city": "Paris",
+      "address": "5 rue du Cinéma, 75001 Paris"
+    }
+  },
+  {
+    "id": 6,
+    "title": "Titanic",
+    "...": "..."
+  }
+]
+``` 
+
+Ici deux films sont retournés pour la ville Paris. L’objet `theatre` imbriqué donne des informations sur le cinéma (on aurait pu n’envoyer que le `theatreId`, mais on affiche le nom et l’adresse pour éviter un aller-retour supplémentaire côté client).
+</details>
+
+
+<details> 
+<summary>🎞️ <strong>GET /movies/{id} – Détail d’un film  (accès public)</strong></summary>
+
+**Requête** : l’ID du film dans l’URL (par ex. /movies/5).
+
+**Traitement** : utilise MovieDAO.getMovie(id) pour obtenir le film correspondant (et éventuellement ses informations associées comme la salle).
+
+**Réponse** : code 200 OK avec un objet JSON représentant le film détaillé. Exemple :
+```json
+{
+  "id": 5,
+  "title": "Inception",
+  "duration": 148,
+  "language": "Anglais (VO sous-titré FR)",
+  "director": "Christopher Nolan",
+  "mainActors": ["Leonardo DiCaprio", "Elliot Page", "Tom Hardy"],
+  "minAge": 12,
+  "startDate": "2010-07-16",
+  "endDate": "2010-09-30",
+  "days": "Lundi,Mercredi,Vendredi",
+  "time": "20:00",
+  "theatre": {
+    "id": 1,
+    "name": "UGC Ciné Cité Les Halles",
+    "city": "Paris",
+    "address": "5 rue du Cinéma, 75001 Paris"
+  }
+}
+```
+Ce JSON contient tous les détails que l’admin avait fournis lors de l’ajout du film, y compris les informations de salle. Il correspond à ce qui serait affiché sur la page de détail publique.
+</details>
+
+Toutes les réponses JSON sont produites automatiquement par Jackson à partir des objets Java (POJOs) retournés par les méthodes JAX-RS. Grâce à l’intégration de Jackson avec Jersey, il suffit d’inclure la dépendance appropriée pour que les entités soient sérialisées/désérialisées en JSON. Les méthodes renvoient généralement un objet `Response` JAX-RS ou directement le POJO, Jersey se chargeant d’appliquer la conversion JSON. 
+
+
+<details>
+<summary><strong>Exemple d’implémentation — CLIQUEZ POUR AFFICHER</strong> 🔍 📊</summary>
+
+  Le fichier `MovieResource.java` définit les endpoints REST relatifs aux films :
+  
+  Dans cet exemple simplifié, `MovieDAO` est appelé directement. En pratique, on pourrait ajouter des contrôles d’authentification (par ex., vérifier qu’un utilisateur est bien connecté avant d’accepter l’ajout d’un film). De plus, pour la création de film, le DAO pourrait définir l’ID du film inséré dans l’objet `newMovie` (d’où le `newMovie.getId()` après insertion réussie).
+  
+```java
+@Path("/movies")
+@Produces(MediaType.APPLICATION_JSON)
+public class MovieResource {
+
+    private MovieDAO movieDao = new MovieDAO();
+
+    @GET
+    public Response getMoviesByCity(@QueryParam("city") String city) {
+        List<Movie> movies;
+        if (city != null && !city.isEmpty()) {
+            movies = movieDao.getMoviesByCity(city);
+        } else {
+            movies = new ArrayList<>();
+        }
+        return Response.ok(movies).build();
+    }
+
+    @GET
+    @Path("/{id}")
+    public Response getMovieById(@PathParam("id") int id) {
+        Movie movie = movieDao.getMovie(id);
+        if (movie != null) {
+            return Response.ok(movie).build();
+        } else {
+            return Response.status(Response.Status.NOT_FOUND)
+                           .entity("{\"error\":\"Movie not found\"}")
+                           .build();
+        }
+    }
+
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response addMovie(Movie newMovie) {
+        boolean created = movieDao.addMovie(newMovie);
+        if (created) {
+            // Retourner l'URI du nouveau film créé, par exemple
+            URI uri = URI.create("/movies/" + newMovie.getId());
+            return Response.created(uri).entity(newMovie).build();
+        } else {
+            return Response.status(Response.Status.BAD_REQUEST)
+                           .entity("{\"error\":\"Cannot create movie\"}")
+                           .build();
+        }
+    }
+}
+```
+
+De même, le fichier `AuthResource.java` gère le endpoint `/login` :
+Ici, pour simplifier, on renvoie juste un indicateur de succès et l’ID utilisateur en cas de login réussi. Une implémentation plus poussée pourrait créer une session HTTP ou retourner un token JWT que le client devra utiliser lors des appels suivants. Cependant, pour ce projet éducatif, une authentification stateful basique suffit.
+
+```java
+@Path("/login")
+@Consumes(MediaType.APPLICATION_JSON)
+@Produces(MediaType.APPLICATION_JSON)
+public class AuthResource {
+
+    private UserDAO userDao = new UserDAO();
+
+    @POST
+    public Response login(Map<String, String> credentials) {
+        String username = credentials.get("username");
+        String password = credentials.get("password");
+        User user = userDao.authenticate(username, password);
+        if (user != null) {
+            // On pourrait générer un token ou créer une session
+            return Response.ok("{\"success\":true, \"userId\":"+user.getId()+"}").build();
+        } else {
+            return Response.status(Response.Status.UNAUTHORIZED)
+                           .entity("{\"success\":false, \"message\":\"Invalid credentials\"}")
+                           .build();
+        }
+    }
+}
+```
+</details>
+
+
+
+
