@@ -1,0 +1,86 @@
+@startuml
+skinparam linetype ortho
+left to right direction
+
+' --- Entités métier ---
+class Movie {
+    - int id
+    - String title
+    - int duration
+    - String language
+    - String director
+    - List<String> mainActors
+    - int minAge
+    - Date startDate
+    - Date endDate
+    - Set<DayOfWeek> days
+    - LocalTime time
+    - Theatre theatre
+}
+
+class Theatre {
+    - int id
+    - String name
+    - String city
+    - String address
+}
+
+class User {
+    - int id
+    - String username
+    - String passwordHash
+    - List<Theatre> theatres
+}
+
+note right of Movie
+days : jours de projection
+time : horaire de la séance
+end note
+
+' --- DAO (Interfaces + Implémentations possibles) ---
+interface MovieDAOInterface {
+    + List<Movie> getMoviesByCity(String city)
+    + Movie getMovie(int id)
+    + boolean addMovie(Movie movie)
+}
+
+class MovieDAO implements MovieDAOInterface
+
+interface TheatreDAOInterface {
+    + Theatre getTheatre(int id)
+    + List<Theatre> getAllTheatres()
+}
+
+class TheatreDAO implements TheatreDAOInterface
+
+interface UserDAOInterface {
+    + User authenticate(String username, String password)
+}
+
+class UserDAO implements UserDAOInterface
+
+' --- Resources REST ---
+class MovieResource {
+    + Response getMovies(String city)
+    + Response getMovie(int id)
+    + Response addMovie(Movie movieData)
+}
+
+class AuthResource {
+    + Response login(Map creds)
+}
+
+' --- Relations métier ---
+Movie "1" --> "1" Theatre : est projeté dans
+User "1" --> "*" Theatre : gère
+
+' --- Dépendances DAO → modèle ---
+MovieDAO ..> Movie : manipule
+TheatreDAO ..> Theatre : manipule
+UserDAO ..> User : manipule
+
+' --- Dépendances Resources → DAO ---
+MovieResource --> MovieDAOInterface : utilise
+AuthResource --> UserDAOInterface : utilise
+
+@enduml
