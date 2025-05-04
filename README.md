@@ -39,7 +39,6 @@
 
 - **Base de données** :
   - **MySQL**.
-  - (**Optionnel**) **HSQLDB** en mémoire pour des besoins spécifiques.
 
 - **Frontend** :
   - **JSP/HTML** pour l’interface utilisateur.
