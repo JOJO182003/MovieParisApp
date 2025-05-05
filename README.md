@@ -228,6 +228,7 @@ Le diagramme respecte la séparation des responsabilités :
 ## 🔗 API REST – Endpoints et formats JSON
 
 Le backend expose quatre endpoints principaux via l’API REST (chemin de contexte `/api/` sur Tomcat).
+Toutes les réponses JSON sont produites automatiquement par Jackson à partir des objets Java (POJOs) retournés par les méthodes JAX-RS. Grâce à l’intégration de Jackson avec Jersey, il suffit d’inclure la dépendance appropriée pour que les entités soient sérialisées/désérialisées en JSON. Les méthodes renvoient généralement un objet `Response` JAX-RS ou directement le POJO, Jersey se chargeant d’appliquer la conversion JSON. 
 
 <details>
 <summary>🔑 <strong>POST /login – Authentification</strong></summary>
@@ -353,9 +354,6 @@ Ici deux films sont retournés pour la ville Paris. L’objet `theatre` imbriqu�
 Ce JSON contient tous les détails que l’admin avait fournis lors de l’ajout du film, y compris les informations de salle. Il correspond à ce qui serait affiché sur la page de détail publique.
 </details>
 
-Toutes les réponses JSON sont produites automatiquement par Jackson à partir des objets Java (POJOs) retournés par les méthodes JAX-RS. Grâce à l’intégration de Jackson avec Jersey, il suffit d’inclure la dépendance appropriée pour que les entités soient sérialisées/désérialisées en JSON. Les méthodes renvoient généralement un objet `Response` JAX-RS ou directement le POJO, Jersey se chargeant d’appliquer la conversion JSON. 
-
-
 <details>
 <summary><strong>Exemple d’implémentation — CLIQUEZ POUR AFFICHER</strong> 🔍 📊</summary>
 
@@ -440,6 +438,111 @@ public class AuthResource {
 ```
 </details>
 
+<br>
+
+## 🗄️ Base de données (MySQL)
+
+Le schéma relationnel comprend trois tables : **Movie** (Film), **Theatre** (Cinéma/Salle) et **User** (Utilisateur admin).
+Ci-dessous le script SQL de création de ces tables, avec les contraintes clés primaires/étrangères appropriées :
 
 
+<details>
+<summary>📝 <strong>Script de création (schema.sql)</strong></summary>
+<br>
+  
+  **Description des tables** :
 
+- **Theatre** : stocke les salles de cinéma (nom, ville, adresse).
+
+- **User** : comptes admin avec login, mot de passe, et référence vers la salle administrée (`theatre_id`).
+Remarque : un utilisateur est associé à un seul cinéma.
+
+- **Movie** : films avec leurs métadonnées.
+`mainActors` est une chaîne de caractères (pas de table séparée pour les acteurs).
+Les champs `startDate`, `endDate`, `days` et `time` décrivent la période de diffusion et les horaires.
+`theatre_id` relie chaque film à une salle spécifique.
+
+```sql
+-- schema.sql : Création des tables
+
+CREATE TABLE Theatre (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    city VARCHAR(50) NOT NULL,
+    address VARCHAR(150)
+);
+
+CREATE TABLE User (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(100) NOT NULL,
+    theatre_id INT,
+    FOREIGN KEY (theatre_id) REFERENCES Theatre(id)
+);
+
+CREATE TABLE Movie (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(100) NOT NULL,
+    duration INT,                -- en minutes
+    language VARCHAR(50),
+    director VARCHAR(100),
+    mainActors VARCHAR(255),     -- liste d'acteurs sous forme de texte
+    minAge INT,
+    startDate DATE,
+    endDate DATE,
+    days VARCHAR(50),            -- jours de projection
+    time TIME,                   -- heure de la séance
+    theatre_id INT NOT NULL,
+    FOREIGN KEY (theatre_id) REFERENCES Theatre(id)
+);
+```
+</details>
+
+<details> 
+  <summary>📊 <strong>Jeu de données initial (data.sql)</strong></summary>
+
+Explication des données :
+
+- Deux cinémas :
+  - **UGC Ciné Cité Les Halles** (Paris, id=1).
+  - **Pathé Carré Sénart** (Lieusaint, id=2).
+
+- Deux utilisateurs admins pour chacun.
+
+- Trois films insérés :
+  - *Inception* et *Titanic* à Paris.
+  - *Interstellar* à Lieusaint.
+
+- Ces données permettent de tester le filtrage par ville avec `GET /movies?city=....`
+
+```sql
+-- data.sql : Données initiales (mock)
+
+-- Théâtres
+INSERT INTO Theatre (id, name, city, address) VALUES
+(1, 'UGC Ciné Cité Les Halles', 'Paris', '5 rue du Cinéma, 75001 Paris'),
+(2, 'Pathé Carré Sénart', 'Lieusaint', 'Centre Commercial Carré Sénart 77127 Lieusaint');
+
+-- Utilisateurs (admins cinéma)
+INSERT INTO User (id, username, password, theatre_id) VALUES
+(1, 'ugc_admin', 'secret', 1),
+(2, 'pathe_admin', 'secret', 2);
+-- NB : mots de passe en clair pour l’exemple (à chiffrer en pratique).
+
+-- Films (un film dans plusieurs théatre ????§§§§§!!!!!)
+INSERT INTO Movie (id, title, duration, language, director, mainActors, minAge,
+                   startDate, endDate, days, time, theatre_id)
+VALUES
+(1, 'Inception', 148, 'Anglais (VO st FR)', 'Christopher Nolan',
+     'Leonardo DiCaprio, Ellen Page, Tom Hardy', 12,
+     '2010-07-16', '2010-09-30', 'Lundi,Mercredi,Vendredi', '20:00', 1),
+
+(2, 'Titanic', 195, 'Anglais (VO st FR)', 'James Cameron',
+     'Leonardo DiCaprio, Kate Winslet', 10,
+     '1998-01-07', '1998-04-30', 'Mardi,Jeudi,Samedi', '21:00', 1),
+
+(3, 'Interstellar', 169, 'Anglais (VO st FR)', 'Christopher Nolan',
+     'Matthew McConaughey, Anne Hathaway', 10,
+     '2014-11-05', '2015-01-15', 'Vendredi,Samedi,Dimanche', '18:30', 2);
+```
+</details>
