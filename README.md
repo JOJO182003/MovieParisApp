@@ -200,7 +200,7 @@ L’arborescence est conçue pour que chaque développeur puisse se concentrer s
 
 ## 📚 Diagramme de classes (modèle Java)
 
-Le diagramme de classes UML ci-dessous présente les principales classes Java du projet et leurs relations.
+Le diagramme de classes UML ci-dessous présente les principales classes Java du projet et leurs relations. (!!!! la note n'est plus valable pour la classe user nécessairement un admin car n'importe qui peux accéder a la page decatalogue pas besoin de connexion).
 ![Schéma du Diagramme de Classe](docs/diagramme_de_classe/diagramme_de_classe.png)
 
 <details>
@@ -544,5 +544,275 @@ VALUES
 (3, 'Interstellar', 169, 'Anglais (VO st FR)', 'Christopher Nolan',
      'Matthew McConaughey, Anne Hathaway', 10,
      '2014-11-05', '2015-01-15', 'Vendredi,Samedi,Dimanche', '18:30', 2);
+```
+</details>
+
+
+
+<br>
+
+## 🖥️ Frontend JSP/HTML
+
+Le frontend consiste en pages JSP servant d’interface utilisateur web. Ces pages permettent aux différents utilisateurs d’interagir avec l’application :
+
+<details>
+<summary>🔐 <strong>login.jsp</strong></summary>
+
+- `login.jsp` – Cette page présente un formulaire de connexion pour les administrateurs de cinéma. Elle comporte des champs username et password, et envoie les informations en POST vers l’endpoint `/api/login` (via le formulaire HTML action="/MovieParisApp/api/login"). Si la réponse indique un succès, l’utilisateur est redirigé vers la page d’ajout de film (`addMovie.jsp`). En cas d’échec, un message d’erreur s’affiche. Le code simplifié de `login.jsp` pourrait être :
+
+  ```jsp
+  <%-- login.jsp --%>
+  <h2>Connexion Administrateur Cinéma</h2>
+  <form method="POST" action="api/login">
+    <label>Utilisateur: <input type="text" name="username"/></label><br/>
+    <label>Mot de passe: <input type="password" name="password"/></label><br/>
+    <button type="submit">Se connecter</button>
+  </form>
+  
+  <%-- Afficher un message d'erreur si fourni --%>
+  <c:if test="${not empty param.error}">
+    <p style="color:red;">${param.error}</p>
+  </c:if>
+  ```
+
+**Remarque** :  On peut utiliser JSTL (`<c:if>`) pour afficher un message d’erreur passé en paramètre après une redirection. L’appel REST `/api/login` peut être traité soit via un fetch AJAX, soit en soumettant directement le formulaire à l’URL REST. Ici, pour simplicité, on envisage que Tomcat transfère la requête `/api/login` vers le servlette Jersey, puis que la réponse JSON soit interprétée par la page (éventuellement via JavaScript). Alternativement, on pourrait faire traiter la soumission par un contrôleur qui appelle le REST en interne et redirige en fonction du résultat.
+</details>
+
+<details>
+<summary>➕ <strong>addMovie.jsp</strong></summary>
+
+ - `addMovie.jsp` – Cette page, accessible seulement après une connexion réussie, fournit un formulaire pour ajouter un film. Les champs correspondent à tous les détails du film (titre, durée, langue, réalisateur, acteurs, âge min, dates début/fin, jours, horaire). L’admin n’a normalement pas besoin de choisir la salle puisque c’est son cinéma par défaut ; on pourrait donc pré-remplir ou cacher ce champ. La soumission du formulaire se fait en POST vers `/api/movies` . Par exemple, un extrait du formulaire JSP :
+
+    ```jsp
+    <%-- addMovie.jsp (extrait) --%>
+    <h2>Ajouter un nouveau film</h2>
+    <form method="POST" action="api/movies">
+      <label>Titre: <input type="text" name="title"/></label><br/>
+      <label>Durée (min): <input type="number" name="duration"/></label><br/>
+      <label>Langue: <input type="text" name="language"/></label><br/>
+      <!-- ... autres champs ... -->
+      <label>Jours (ex: Lun,Mer,Ven): <input type="text" name="days"/></label><br/>
+      <label>Heure: <input type="time" name="time"/></label><br/>
+      <!-- Id du cinéma de l'admin (caché ou selection) -->
+      <input type="hidden" name="theatreId" value="${session.theatreId}"/>
+      <button type="submit">Enregistrer le film</button>
+    </form>
+    ```
+**Remarque** : Après l’ajout, on pourrait simplement afficher un message de confirmation ou vider le formulaire. (Dans une version aboutie, on gérerait la réponse JSON pour confirmer que le film a été créé, éventuellement en affichant son ID ou en ajoutant la liste.)
+
+</details>
+
+
+<details>
+<summary>🎥 <strong>moviesByCity.jsp</strong></summary>
+
+- `moviesByCity.jsp` – Page publique pour consulter les films par ville. Cette page propose par exemple une liste déroulante des villes disponibles ou un champ de recherche. L’utilisateur sélectionne une ville puis déclenche l’affichage des films correspondants. L’implémentation peut se faire de deux façons :
+  - **1.  Via AJAX (client-side) :** a page charge initialement la structure de base (en HTML) et un petit script JavaScript va appeler l’API REST `/api/movies?city=...` en asynchrone (par exemple avec `fetch` ou AJAX) pour récupérer la liste en JSON, puis générer dynamiquement la liste des films dans la page.
+  - **2. Via server-side (JSP) :** La page JSP elle-même fait l’appel et rend la liste. Par exemple, on pourrait passer la ville en paramètre de requête à `moviesByCity.jsp` (ex: `moviesByCity.jsp?city=Paris`), et dans le JSP utiliser la couche DAO ou un appel interne à l’API pour obtenir la liste et la parcourir avec JSTL pour afficher un tableau HTML.
+
+  Pour favoriser l’indépendance frontend/backend, l’approche AJAX est recommandée. Par exemple, `moviesByCity.jsp` pourrait inclure un script :
+  
+    ```jsp
+    <select id="citySelect">
+        <option value="Paris">Paris</option>
+        <option value="Lieusaint">Lieusaint</option>
+    </select>
+    <div id="moviesList"></div>
+    
+    <script>
+        function loadMovies(city) {
+            fetch('api/movies?city=' + encodeURIComponent(city))
+                .then(resp => {
+                    if (!resp.ok) throw new Error("Erreur lors de la récupération des films.");
+                    return resp.json();
+                })
+                .then(data => {
+                    const listDiv = document.getElementById('moviesList');
+                    listDiv.innerHTML = "";
+                    if (data.length === 0) {
+                        listDiv.innerHTML = "<p>Aucun film trouvé pour cette ville.</p>";
+                    } else {
+                        data.forEach(movie => {
+                            const link = `<a href="movieDetails.jsp?id=${movie.id}">${movie.title}</a>`;
+                            listDiv.innerHTML += `<p>${link} – ${movie.theatre.name}</p>`;
+                        });
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('moviesList').innerHTML = 
+                        `<p style='color:red;'>${error.message}</p>`;
+                });
+        }
+    
+        document.getElementById('citySelect').addEventListener('change', function() {
+            loadMovies(this.value);
+        });
+    
+        // Charger les films de la ville par défaut au démarrage
+        window.addEventListener('load', function() {
+            loadMovies(document.getElementById('citySelect').value);
+        });
+    </script>
+    ```
+Dans cet exemple, lorsque la ville change, on récupère la liste JSON des films et on insère un lien par film qui mène à la page de détails correspondante. On affiche aussi le nom du cinéma (fourni dans `movie.theatre.name`).
+
+</details>
+
+
+<details>
+<summary>📝 <strong>movieDetails.jsp</strong></summary>
+
+- `movieDetails.jsp` – Page de détails d’un film. Elle affiche toutes les informations sur un film sélectionné. En suivant l’approche AJAX, cette page peut, au chargement, lire le paramètre id dans l’URL (par ex. movieDetails.jsp?id=5) et effectuer un fetch('api/movies/5') pour obtenir le JSON du film, puis remplir le contenu de la page (titre, description, acteurs, horaires, etc.) dynamiquement. 
+    
+    ```jsp
+    <%-- movieDetails.jsp --%>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Détails du film</title>
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const params = new URLSearchParams(window.location.search);
+                const id = params.get("id");
+                if (!id) {
+                    document.getElementById("movieDetails").innerText = "Aucun ID de film fourni.";
+                    return;
+                }
+    
+                fetch("api/movies/" + id)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error("Film introuvable.");
+                        }
+                        return response.json();
+                    })
+                    .then(movie => {
+                        document.getElementById("title").innerText = movie.title;
+                        document.getElementById("director").innerText = movie.director;
+                        document.getElementById("cinema").innerText = movie.theatre.name + " (" + movie.theatre.address + ")";
+                        document.getElementById("horaire").innerText = movie.days + " à " + movie.time;
+                    })
+                    .catch(error => {
+                        document.getElementById("movieDetails").innerText = error.message;
+                    });
+            });
+        </script>
+    </head>
+    <body>
+        <h2>Détails du film</h2>
+        <div id="movieDetails">
+            <p><b>Titre :</b> <span id="title"></span></p>
+            <p><b>Réalisateur :</b> <span id="director"></span></p>
+            <p><b>Cinéma :</b> <span id="cinema"></span></p>
+            <p><b>Horaires :</b> <span id="horaire"></span></p>
+        </div>
+    </body>
+    </html>
+    ```
+Utiliser AJAX / Fetch API dans le JSP pour appeler l’API REST et remplir dynamiquement la page avec JavaScript.
+
+Avantages :
+- **Découplage total** → Le frontend (HTML/JS) ne dépend plus de l’implémentation backend.
+- **Réutilisable** → Ton API peut être consommée aussi par des applis mobiles ou autres clients.
+- **Évolutif** → Si vous migrez le frontend vers Angular/React/Vue plus tard, tu ne changes pas l’API.
+</details>
+
+
+
+
+
+<br>
+## 🧪 Mocks JSON pour le frontend
+
+Dans `src/main/resources/mock/`, trois fichiers JSON fournissent des données fictives : 
+- **`movies.json`**
+- **`theatres.json`**
+- **`users.json`**
+
+Ces fichiers représentent respectivement la liste des films, des salles et des utilisateurs, dans le même format que ce que renverrait l’API REST. L’objectif est de permettre au développeur frontend de travailler en parallèle en simulant des réponses d’API. Par exemple, il peut charger `movies.json` via JavaScript au lieu d’appeler réellement `/api/movies`, tant que le backend n’est pas prêt.
+
+
+
+<details>
+<summary>🎞 <strong>movies.json</strong></summary>
+
+**Remarque** : Le format de `movies.json` est proche de la réponse JSON réelle de GET `/movies?city=...`, à la différence qu’ici chaque film référence la salle par son `theatreId` au lieu d’embarquer l’objet complet. On peut utiliser `theatres.json` pour faire le lien. 
+  
+Extrait de **`movies.json`** (nos 3 films d’exemple) :
+
+```json
+[
+  {
+    "id": 1,
+    "title": "Inception",
+    "duration": 148,
+    "language": "Anglais (VO st FR)",
+    "director": "Christopher Nolan",
+    "mainActors": ["Leonardo DiCaprio", "Ellen Page", "Tom Hardy"],
+    "minAge": 12,
+    "startDate": "2010-07-16",
+    "endDate": "2010-09-30",
+    "days": "Lundi,Mercredi,Vendredi",
+    "time": "20:00",
+    "theatreId": 1
+  },
+  {
+    "id": 2,
+    "title": "Titanic",
+    "duration": 195,
+    "language": "Anglais (VO st FR)",
+    "director": "James Cameron",
+    "mainActors": ["Leonardo DiCaprio", "Kate Winslet"],
+    "minAge": 10,
+    "startDate": "1998-01-07",
+    "endDate": "1998-04-30",
+    "days": "Mardi,Jeudi,Samedi",
+    "time": "21:00",
+    "theatreId": 1
+  },
+  {
+    "id": 3,
+    "title": "Interstellar",
+    "duration": 169,
+    "language": "Anglais (VO st FR)",
+    "director": "Christopher Nolan",
+    "mainActors": ["Matthew McConaughey", "Anne Hathaway"],
+    "minAge": 10,
+    "startDate": "2014-11-05",
+    "endDate": "2015-01-15",
+    "days": "Vendredi,Samedi,Dimanche",
+    "time": "18:30",
+    "theatreId": 2
+  }
+]
+```
+</details> 
+
+<details> 
+  <summary>🏢 <strong>theatres.json</strong></summary>
+  
+Extrait de **`theatres.json`** :
+
+```json
+[
+  { "id": 1, "name": "UGC Ciné Cité Les Halles", "city": "Paris", "address": "5 rue du Cinéma, 75001 Paris" },
+  { "id": 2, "name": "Pathé Carré Sénart", "city": "Lieusaint", "address": "Centre Com. Carré Sénart 77127" }
+]
+```
+</details>
+
+
+<details> 
+  <summary>👤 <strong>users.json</strong></summary>
+
+**Remarque** : Ces données permettent de simuler l’authentification sans requêtes réelles vers la base de données. Le développeur frontend peut ainsi, par exemple, charger *movies.json* et *theatres.json* ensemble pour afficher les films par ville, ou vérifier le login en comparant l’entrée dans *users.json*. Bien sûr, ces mocks doivent rester cohérents avec ce que renverra réellement l’API REST afin de faciliter l’intégration finale.
+
+Extrait de **`users.json`** :
+
+```json
+[
+  { "id": 1, "username": "ugc_admin", "password": "secret", "theatreId": 1 },
+  { "id": 2, "username": "pathe_admin", "password": "secret", "theatreId": 2 }
+]
 ```
 </details>
