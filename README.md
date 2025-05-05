@@ -722,6 +722,7 @@ Avantages :
 
 
 <br>
+
 ## 🧪 Mocks JSON pour le frontend
 
 Dans `src/main/resources/mock/`, trois fichiers JSON fournissent des données fictives : 
