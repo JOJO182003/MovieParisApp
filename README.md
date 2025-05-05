@@ -1,6 +1,21 @@
 # MovieParisApp – Application Web de gestion de films (Paris)
 <br>
 
+## 📚 Sommaire
+
+- [Présentation du projet](##présentation-du-projet)
+- [Architecture du système](##architecture-du-système)
+- [Diagramme d’architecture](##🖼️-diagramme-darchitecture)
+- [Diagramme de classes](##diagramme-de-classes-modèle-java)
+- [API REST – Endpoints](##-api-rest--endpoints-et-formats-json)
+- [Base de données (MySQL)](###️-base-de-données-mysql)
+- [Frontend JSP/HTML](##-frontend-jsphtml)
+- [Mocks JSON pour le frontend](##-mocks-json-pour-le-frontend)
+- [Tests unitaires (JUnit)](##✅-tests-unitaires-junit)
+- [Répartition des tâches (4 développeurs)](##👥-répartition-des-tâches-4-développeurs)
+- [Instructions de build et d’exécution](##🏗️-instructions-de-build-et-dexécution)
+
+
 ## 🎬 Présentation du projet
 **MovieParisApp** est une application web (**Java EE**) qui offre des services REST pour gérer la programmation de films dans les cinémas parisiens, à l’image du site AlloCiné.
 
