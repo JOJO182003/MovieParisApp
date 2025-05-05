@@ -1004,12 +1004,157 @@ Une bonne communication est essentielle pour :
 - Les URL des endpoints.
 - Le comportement attendu des services.
 
+<br>
+
+## 🏗️ Instructions de build et d’exécution
+
+Pour construire et exécuter l’application **MovieParisApp**, suivez les étapes ci-dessous.
+
+<br>
+
+### 🔧 Prérequis
+
+- **JDK 8** ou supérieur.
+- **Maven 3.x**.
+- **Tomcat 9** ou supérieur (configuré dans Eclipse ou disponible pour déploiement manuel).
+- **MySQL 5+** avec une base nommée `movieparis` encodée en UTF-8.
+
+<br>
+
+### 🗄️ Configuration de la base de données
+
+1. Importez le schéma et les données mock :
+    - Exécutez `src/main/resources/db/schema.sql` puis `data.sql` sur la base `movieparis`.
+2. **Note** :  
+   Par défaut, `MovieDAO` utilise :
+   ```text
+   jdbc:mysql://localhost:3306/movieparis
+   ```
+avec l’utilisateur root (sans mot de passe). Adaptez ces paramètres dans `MovieDAO.java` si nécessaire.
+
+<br>
+
+### 🏗️ Build Maven
+À la racine du projet, exécutez :
+```bash
+mvn clean package
+```
+- Compile le projet.
+- Exécute les tests (si configurés).
+- Produit le fichier **WAR** dans `target/` (ex : `MovieParisApp.war`).
+
+<br>
+
+### 📦 Dépendances principales (extrait du pom.xml) :
+**Remarque** : Les dépendances avec `scope` **provided** (Servlet/JSP API) ne sont pas empaquetées car Tomcat les fournit déjà.
+```xml
+<dependencies>
+    <!-- Jersey -->
+    <dependency>
+        <groupId>org.glassfish.jersey.core</groupId>
+        <artifactId>jersey-server</artifactId>
+        <version>2.34</version>
+    </dependency>
+    <dependency>
+        <groupId>org.glassfish.jersey.containers</groupId>
+        <artifactId>jersey-container-servlet</artifactId>
+        <version>2.34</version>
+    </dependency>
+    <!-- Jackson -->
+    <dependency>
+        <groupId>org.glassfish.jersey.media</groupId>
+        <artifactId>jersey-media-json-jackson</artifactId>
+        <version>2.34</version>
+    </dependency>
+    <!-- MySQL -->
+    <dependency>
+        <groupId>mysql</groupId>
+        <artifactId>mysql-connector-java</artifactId>
+        <version>8.0.32</version>
+    </dependency>
+    <!-- Servlet & JSP -->
+    <dependency>
+        <groupId>javax.servlet</groupId>
+        <artifactId>javax.servlet-api</artifactId>
+        <version>4.0.1</version>
+        <scope>provided</scope>
+    </dependency>
+    <dependency>
+        <groupId>javax.servlet.jsp</groupId>
+        <artifactId>javax.servlet.jsp-api</artifactId>
+        <version>2.3.3</version>
+        <scope>provided</scope>
+    </dependency>
+    <!-- Tests -->
+    <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>5.8.2</version>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
+```
+<br>
+
+### 🚀 Déploiement
+Déployez le WAR :
+- **Eclipse** : ajoutez le projet à un serveur Tomcat configuré.
+- **Manuellement** : copiez `MovieParisApp.war` dans le dossier `webapps/` de Tomcat puis démarrez le serveur (par défaut sur le port 8080).
+
+<br>
+
+### 🌐 Exécution
+#### Interface admin :
+
+`http://localhost:8080/MovieParisApp/login.jsp`
+
+-  Connectez-vous avec un compte de `users.json` (ex : `ugc_admin` / `secret`).
+-  Redirigé vers `addMovie.jsp` après connexion.
+
+#### Ajout de film :
+
+- Remplissez le formulaire sur `addMovie.jsp`.
+- Une requête POST est envoyée à :
+
+`http://localhost:8080/MovieParisApp/api/movies`
+
+#### Interface publique :
+- Choisissez une ville (ex : Paris).
+- Liste des films s’affiche.
+- Cliquez sur un titre pour accéder à sa page détail (`movieDetails.jsp?id=...`).
+
+`http://localhost:8080/MovieParisApp/moviesByCity.jsp`
+
+
+#### API directe :
+- Permet de tester l’API indépendamment (cURL, Postman...).
+
+```text
+http://localhost:8080/MovieParisApp/api/movies?city=Paris
+http://localhost:8080/MovieParisApp/api/movies/1
+```
+
+### 🧪 Exécution des tests
+Pour lancer les tests JUnit :
+```bash
+mvn test
+```
+- Base de test : soit MySQL, soit H2 en mémoire.
+- Tous les tests devraient réussir si les composants fonctionnent correctement.
 
 
 
+### 📄 Documentation
 
+Le fichier README.md fournit :
 
+- Vue d’ensemble du projet.
+- Diagrammes d’architecture et de classes.
+- Contrat d’API.
+- Instructions de déploiement et de test.
 
+**Objectif** :
+Tout développeur peut cloner le dépôt, déployer l’application localement, travailler sur sa partie et valider l’intégration finale.
 
 
 
