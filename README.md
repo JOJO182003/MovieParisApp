@@ -817,3 +817,205 @@ Extrait de **`users.json`** :
 ]
 ```
 </details>
+
+
+
+
+<br>
+
+
+
+## ✅ Tests unitaires (JUnit)
+
+Le projet inclut des tests unitaires pour assurer le bon fonctionnement du backend, notamment des services REST et des DAO. Ces tests sont écrits avec JUnit 5 (Jupiter). Chaque développeur peut ainsi vérifier sa partie en isolé :
+
+- ✅ Tests DAO → Validité des opérations CRUD sur la base.
+- ✅ Tests REST → Fonctionnement des endpoints HTTP.
+- 🔄 Chaque test part d’un état propre (base H2 en mémoire, ou mocks).
+- 🔎 Les cas normaux et les erreurs sont couverts (exemple : GET inexistant retourne 404, POST invalide retourne 400).
+
+
+<details>
+<summary>🗄 <strong>Tests DAO</strong></summary>
+
+**Objectif** : Vérifier les opérations de base de données.
+
+**Exemple** : `MovieDAOTest` insère un film factice dans une base de test (par exemple H2 en mémoire), puis vérifie les méthodes `getMoviesByCity`, `getMovie` et `addMovie`.
+
+On utilise le script `schema.sql` pour créer la base, et chaque test travaille dans une transaction pour rétablir l’état initial après exécution.
+
+**Remarque** : Chaque test commence avec une base vide (on efface les films ajoutés à la fin).
+Le comportement du DAO est ainsi testé de manière fiable.
+
+**Extrait de test pour MovieDAO** :
+
+```java
+class MovieDAOTest {
+    private static MovieDAO dao;
+
+    @BeforeAll
+    static void initDatabase() {
+        dao = new MovieDAO();
+        dao.setConnection(TestDB.getConnection()); 
+        TestDB.executeSqlScript("schema.sql");
+    }
+
+    @AfterEach
+    void cleanData() {
+        TestDB.executeSql("DELETE FROM Movie");
+    }
+
+    @Test
+    void testAddAndGetMovie() {
+        Movie m = new Movie("TestFilm", 120, "Français", "Test Réal", "Acteur1,Acteur2",
+                             0, Date.valueOf("2025-01-01"), Date.valueOf("2025-01-31"),
+                             "Lundi,Mardi", "20:00", new Theatre(1));
+        boolean ok = dao.addMovie(m);
+        assertTrue(ok);
+        assertNotNull(m.getId());
+        Movie fetched = dao.getMovie(m.getId());
+        assertEquals("TestFilm", fetched.getTitle());
+    }
+
+    @Test
+    void testGetMoviesByCity() {
+        Movie m1 = new Movie("FilmParis", ...);
+        m1.setTheatre(new Theatre(1, "Cinéma Paris", "Paris", null));
+        Movie m2 = new Movie("FilmLyon", ...);
+        m2.setTheatre(new Theatre(2, "Cinéma Lyon", "Lyon", null));
+        dao.addMovie(m1);
+        dao.addMovie(m2);
+
+        List<Movie> parisMovies = dao.getMoviesByCity("Paris");
+        assertEquals(1, parisMovies.size());
+    }
+}
+```
+</details>
+
+<details> 
+  <summary>🌐 <strong>Tests REST (JerseyTest)</strong></summary>
+
+**Objectif** : Tester les ressources REST de manière isolée.
+**Remarque** : 
+- On peut utiliser JerseyTest pour déployer les endpoints REST en mémoire et envoyer des requêtes HTTP simulées.
+- On peut aussi tester `POST /movies` en envoyant un JSON et en vérifiant que le film est créé. Pour éviter de dépendre de la vraie base, les DAO peuvent être remplacés par des mocks.
+
+**Extrait de test pour MovieResourceTest ** :
+
+```java
+class MovieResourceTest extends JerseyTest {
+
+    @Override
+    protected Application configure() {
+        return new ResourceConfig(MovieResource.class);
+    }
+
+    @Test
+    void givenCity_whenGetMovies_thenReceiveMoviesList() {
+        Response response = target("/movies")
+                            .queryParam("city", "Paris")
+                            .request()
+                            .get();
+        assertEquals(200, response.getStatus());
+
+        List<Movie> movies = response.readEntity(new GenericType<List<Movie>>() {});
+        assertFalse(movies.isEmpty());
+        assertEquals("Paris", movies.get(0).getTheatre().getCity());
+    }
+}
+```
+</details>
+
+<br>
+
+## 👥 Répartition des tâches (4 développeurs)
+
+Pour organiser le développement à quatre personnes, la répartition suivante est proposée.  
+Chaque développeur travaille sur une partie bien définie avec des interfaces claires entre les modules.
+
+
+
+<details>
+<summary>💻 <strong>Développeur 1 – Backend REST</strong></summary>
+
+- Implémentation des services REST avec **JAX-RS/Jersey**.
+- Écrit les classes Resource (**MovieResource**, **AuthResource**).
+- Définit les endpoints (méthodes, URLs, format JSON).
+- Utilise des données fictives au départ (listes statiques) pour tester les endpoints sans attendre la base.
+- Collabore avec Dev2 pour définir l’appel à la couche DAO.
+- Peut écrire des stubs ou interfaces pour DAO.
+
+</details>
+
+
+
+<details>
+<summary>🗄 <strong>Développeur 2 – Base de Données & DAO</strong></summary>
+
+- Conception du schéma de base de données.
+- Écriture des scripts SQL (**schema.sql**, **data.sql**).
+- Développement des classes DAO (**MovieDAO**, **TheatreDAO**, **UserDAO**) avec méthodes CRUD.
+- Tests indépendants des DAO (via base **MySQL** ou **H2** en mémoire).
+- Travaille avec Dev1 pour définir les signatures des méthodes et le format des objets (**Movie**, **Theatre**, **User**).
+- Peut fournir à Dev1 un mock DAO pour avancer en parallèle.
+
+</details>
+
+
+<details>
+<summary>🎨 <strong>Développeur 3 – Frontend JSP/HTML</strong></summary>
+
+- Création des pages **JSP** et ressources statiques (**CSS/JS**).
+- Pages : **login.jsp**, **addMovie.jsp**, **moviesByCity.jsp**, **movieDetails.jsp**.
+- Collaboration avec Dev1 pour connaître les endpoints et formats JSON.
+- Utilisation des fichiers **JSON mock** pour développer en autonomie (**movies.json**, **theatres.json**, **users.json**).
+- Peut utiliser [json-server](https://www.json-server.dev/) pour simuler l’API.
+- Définition de la navigation entre pages.
+
+</details>
+
+
+
+<details>
+<summary>🧪 <strong>Développeur 4 – Tests & Intégration</strong></summary>
+
+- Rédaction des tests unitaires (**JUnit**) pour les ressources REST et DAO.
+- Utilisation de **JerseyTest** pour tester les endpoints REST.
+- Création de mocks ou base **H2** pour isoler les tests.
+- Configuration Maven (**pom.xml**) :
+  - Dépendances : Jersey, Jackson, MySQL, JUnit.
+  - Plugins : maven-war-plugin, etc.
+- Documentation des instructions de build, déploiement et tests.
+- Intégration des modules :
+  - Vérification de la compatibilité entre DAO et REST.
+  - Exécution des tests d’intégration.
+  - Débogage des problèmes éventuels.
+
+</details>
+
+
+
+**📝 Note importante** :  
+Cette séparation des rôles garantit que chacun peut avancer de manière autonome.  
+Le contrat d’interface (**format JSON des échanges**, **schéma de base**) constitue le plan d’intégration.  
+Une bonne communication est essentielle pour :
+- Se synchroniser sur les noms des champs JSON.
+- Les URL des endpoints.
+- Le comportement attendu des services.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
